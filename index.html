@@ -1,1 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NAVAA Staking DApp</title>
+  <!-- TailwindCSS CDN for quick styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Ethers.js for blockchain interaction -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <!-- HEADER -->
+  <header class="p-4 bg-blue-600 text-white flex justify-between">
+    <h1 class="text-lg font-bold">NAVAA Staking</h1>
+    <button id="connectBtn" class="bg-white text-blue-600 px-3 py-1 rounded">
+      Connect Wallet
+    </button>
+  </header>
+
+  <!-- MAIN SECTION -->
+  <main class="max-w-lg mx-auto p-4 mt-6 bg-white shadow rounded">
+    <!-- Amount input -->
+    <label class="block mb-1 font-semibold">Stake Amount (NAVAA)</label>
+    <input id="amount" type="number" placeholder="170000" 
+      class="w-full border p-2 rounded mb-3" />
+
+    <!-- Referral input -->
+    <label class="block mb-1 font-semibold">Referral Address (optional)</label>
+    <input id="referrer" type="text" placeholder="0x..." 
+      class="w-full border p-2 rounded mb-3" />
+
+    <!-- Approve + Stake buttons -->
+    <button id="approveBtn" class="w-full bg-yellow-500 text-white py-2 rounded mb-2">
+      Approve
+    </button>
+    <button id="stakeBtn" class="w-full bg-green-600 text-white py-2 rounded">
+      Stake
+    </button>
+
+    <!-- Message area -->
+    <p id="message" class="mt-4 text-sm text-red-600"></p>
+
+    <!-- Info -->
+    <div class="mt-6 text-xs text-gray-600">
+      <p>• Minimum stake: 170,000 NAVAA</p>
+      <p>• Maximum stake: 100,000,000 NAVAA</p>
+      <p>• Duration: 1700 days (~4.6 years)</p>
+      <p>• Rewards: 4x principal (linear over duration)</p>
+      <p>• Withdrawal fee: 2%</p>
+      <p>• Referral bonus: 17% instantly (first-time only)</p>
+    </div>
+  </main>
+
+  <script>
+    // -----------------------------
+    // CONFIGURATION
+    // -----------------------------
+    const CONTRACT = "YOUR_STAKING_CONTRACT_ADDRESS"; // replace with deployed contract
+    const TOKEN = "YOUR_TOKEN_ADDRESS"; // replace with NAVAA token
+    const MIN = ethers.utils.parseUnits("170000", 18);
+    const MAX = ethers.utils.parseUnits("100000000", 18);
+
+    // Minimal ABIs
+    const tokenAbi = [
+      "function balanceOf(address) view returns (uint)",
+      "function allowance(address, address) view returns (uint)",
+      "function approve(address, uint) returns (bool)"
+    ];
+
+    const stakingAbi = [
+      "function stakeTokens(uint256 amount, address referrer) external",
+      "function isReferrerEligible(address addr) view returns (bool)",
+      "function refereeUsed(address) view returns (bool)"
+    ];
+
+    // -----------------------------
+    // GLOBALS
+    // -----------------------------
+    let provider, signer, token, staking, account;
+
+    const connectBtn = document.getElementById("connectBtn");
+    const approveBtn = document.getElementById("approveBtn");
+    const stakeBtn = document.getElementById("stakeBtn");
+    const message = document.getElementById("message");
+
+    // -----------------------------
+    // CONNECT WALLET
+    // -----------------------------
+    connectBtn.onclick = async () => {
+      if (!window.ethereum) {
+        alert("Install MetaMask first.");
+        return;
+      }
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      account = await signer.getAddress();
+      connectBtn.innerText = account.slice(0, 6) + "..." + account.slice(-4);
+      token = new ethers.Contract(TOKEN, tokenAbi, signer);
+      staking = new ethers.Contract(CONTRACT, stakingAbi, signer);
+    };
+
+    // -----------------------------
+    // APPROVE
+    // -----------------------------
+    approveBtn.onclick = async () => {
+      try {
+        message.innerText = "";
+        const amt = ethers.utils.parseUnits(document.getElementById("amount").value || "0", 18);
+        if (amt.lte(0)) { message.innerText = "Enter valid amount"; return; }
+        const tx = await token.approve(CONTRACT, amt);
+        message.innerText = "Approval submitted...";
+        await tx.wait();
+        message.innerText = "Approval confirmed!";
+      } catch (e) {
+        message.innerText = e.message;
+      }
+    };
+
+    // -----------------------------
+    // STAKE
+    // -----------------------------
+    stakeBtn.onclick = async () => {
+      try {
+        message.innerText = "";
+        const amt = ethers.utils.parseUnits(document.getElementById("amount").value || "0", 18);
+        if (amt.lt(MIN) || amt.gt(MAX)) { 
+          message.innerText = "Amount must be between 170k and 100M"; return; 
+        }
+        const ref = document.getElementById("referrer").value || ethers.constants.AddressZero;
+        const tx = await staking.stakeTokens(amt, ref);
+        message.innerText = "Staking submitted...";
+        await tx.wait();
+        message.innerText = "Staking successful!";
+      } catch (e) {
+        message.innerText = e.message;
+      }
+    };
+  </script>
+</body>
+</html>
 
