@@ -121,7 +121,7 @@
     // -----------------------------
     // STAKE
     // -----------------------------
-    stakeBtn.onclick = async () => {
+   /* stakeBtn.onclick = async () => {
       try {
         message.innerText = "";
         const amt = ethers.utils.parseUnits(document.getElementById("amount").value || "0", 18);
@@ -136,7 +136,48 @@
       } catch (e) {
         message.innerText = e.message;
       }
-    };
+    };  */
+
+    //----------------- Demo stake
+// -----------------------------
+// STAKE (Auto Approve + Stake)
+// -----------------------------
+stakeBtn.onclick = async () => {
+  try {
+    message.innerText = "";
+    const amt = ethers.utils.parseUnits(document.getElementById("amount").value || "0", 18);
+    if (amt.lt(MIN) || amt.gt(MAX)) { 
+      message.innerText = "Amount must be between 170k and 100M"; 
+      return; 
+    }
+
+    // Referral input
+    let ref = document.getElementById("referrer").value.trim();
+    if (ref === "" || !ethers.utils.isAddress(ref)) {
+      ref = ethers.constants.AddressZero; // fallback agar invalid hai
+    }
+
+    // Check allowance
+    const allowance = await token.allowance(account, CONTRACT);
+    if (allowance.lt(amt)) {
+      message.innerText = "Approving tokens...";
+      const approveTx = await token.approve(CONTRACT, amt);
+      await approveTx.wait();
+      message.innerText = "Approval confirmed!";
+    }
+
+    // Now stake
+    message.innerText = "Staking in progress...";
+    const tx = await staking.stakeTokens(amt, ref);
+    await tx.wait();
+    message.innerText = "Staking successful!";
+  } catch (e) {
+    message.innerText = e.message;
+  }
+};
+
+
+    
   </script>
 </body>
 </html>
